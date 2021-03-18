@@ -5,10 +5,10 @@ import time
 import math
 import machine
 
-def _mode_in(pin, mode):
+def _mode_in(pin):
     pin.init(mode=machine.Pin.IN)
 
-def _mode_out(pin, mode):
+def _mode_out(pin):
     pin.init(mode=machine.Pin.OUT)
 
 class SHT1xError(Exception):
