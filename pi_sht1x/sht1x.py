@@ -5,6 +5,12 @@ import time
 import math
 import machine
 
+def _mode_in(pin, mode):
+    pin.init(mode=machine.Pin.IN)
+
+def _mode_out(pin, mode):
+    pin.init(mode=machine.Pin.OUT)
+
 class SHT1xError(Exception):
     pass
 
@@ -221,7 +227,7 @@ class SHT1x:
         Raises an exception if the Data Ready signal hasn't been received after 350 milliseconds.
         :return: None
         """
-        self.data_pin.mode(machine.Pin.IN)
+        _mode_in(self.data_pin)
         data_ready = 1
 
         for i in range(35):
@@ -260,8 +266,8 @@ class SHT1x:
         Reads a single byte from the SHT1x sensor.
         :return: 8-bit value.
         """
-        self.data_pin.mode(machine.Pin.IN)
-        self.sck_pin.mode(machine.Pin.OUT)
+        _mode_in(self.data_pin)
+        _mode_out(self.sck_pin)
 
         data = 0b00000000
         for i in range(8):
@@ -277,8 +283,8 @@ class SHT1x:
         :param data: Byte of data to send.
         :return: None
         """
-        self.data_pin.mode(machine.Pin.OUT)
-        self.sck_pin.mode(machine.Pin.OUT)
+        _mode_out(self.data_pin)
+        _mode_out(self.sck_pin)
 
         for i in range(8):
             self._toggle_pin(self.data_pin, data & (1 << 7 - i))
@@ -302,8 +308,8 @@ class SHT1x:
         Sends the transmission start sequence to the sensor to initiate communication.
         :return: None
         """
-        self.data_pin.mode(machine.Pin.OUT)
-        self.sck_pin.mode(machine.Pin.OUT)
+        _mode_out(self.data_pin)
+        _mode_out(self.sck_pin)
 
         self._toggle_pin(self.data_pin, 1)
         self._toggle_pin(self.sck_pin, 1)
@@ -318,8 +324,8 @@ class SHT1x:
         Sends skip ACK by keeping the DATA line high to bypass CRC and end transmission.
         :return: None.
         """
-        self.data_pin.mode(machine.Pin.OUT)
-        self.sck_pin.mode(machine.Pin.OUT)
+        _mode_out(self.data_pin)
+        _mode_out(self.sck_pin)
 
         self._toggle_pin(self.data_pin, 1)
         self._toggle_pin(self.sck_pin, 1)
@@ -331,8 +337,8 @@ class SHT1x:
         :param command_name: Command issued to the sensor.
         :return: None
         """
-        self.data_pin.mode(machine.Pin.IN)
-        self.sck_pin.mode(machine.Pin.OUT)
+        _mode_in(self.data_pin)
+        _mode_out(self.sck_pin)
 
         self._toggle_pin(self.sck_pin, 1)
 
@@ -347,8 +353,8 @@ class SHT1x:
         Sends ACK to the SHT1x confirming byte measurement data was received by the caller.
         :return: None.
         """
-        self.data_pin.mode(machine.Pin.OUT)
-        self.sck_pin.mode(machine.Pin.OUT)
+        _mode_out(self.data_pin)
+        _mode_out(self.sck_pin)
 
         self._toggle_pin(self.data_pin, 1)
         self._toggle_pin(self.data_pin, 0)
@@ -461,8 +467,8 @@ class SHT1x:
         Resets the serial interface to the Sht1x sensor. The status register preserves its content.
         :return: None.
         """
-        self.data_pin.mode(machine.Pin.OUT)
-        self.sck_pin.mode(machine.Pin.OUT)
+        _mode_out(self.data_pin)
+        _mode_out(self.sck_pin)
 
         self._toggle_pin(self.data_pin, 1)
         for i in range(10):
