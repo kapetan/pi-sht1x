@@ -41,15 +41,15 @@ class SHT1x:
                 'WriteStatusRegister': 0b00000110,
                 'SoftReset': 0b00011110,
                 'NoOp': 0b00000000}
-    RESOLUTION = {'High': [14, 12], 'Low': [12, 8]}
+    RESOLUTION = {'HIGH': [14, 12], 'LOW': [12, 8]}
     VDD = {'5V': 5, '4V': 4, '3.5V': 3.5, '3V': 3, '2.5V': 2.5}
 
-    def __init__(self, data_pin, sck_pin, vdd='3.5V', resolution='High',
+    def __init__(self, data_pin, sck_pin, vdd='3.5V', resolution='HIGH',
                  heater=False, otp_no_reload=False, crc_check=True):
         self.data_pin = data_pin
         self.sck_pin = sck_pin
         self.vdd = self.VDD.get(vdd.upper(), self.VDD['3.5V'])
-        self._resolution = self.RESOLUTION.get(resolution.capitalize(), self.RESOLUTION['High'])
+        self._resolution = self.RESOLUTION.get(resolution.upper(), self.RESOLUTION['HIGH'])
         self._heater = heater
         self._otp_no_reload = otp_no_reload
         self.crc_check = crc_check
@@ -107,7 +107,7 @@ class SHT1x:
             mask += 4
         if self._otp_no_reload:
             mask += 2
-        if self._resolution[0] == self.RESOLUTION['Low'][0]:
+        if self._resolution[0] == self.RESOLUTION['LOW'][0]:
             mask += 1
 
         self._write_status_register(mask)
