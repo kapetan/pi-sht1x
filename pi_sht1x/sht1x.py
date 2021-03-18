@@ -3,20 +3,10 @@ SHT1x library
 """
 import time
 import math
-
+import machine
 
 class SHT1xError(Exception):
     pass
-
-
-try:
-    import RPi.GPIO as GPIO
-except ImportError:
-    raise SHT1xError('Could not import the RPi.GPIO package (http://pypi.python.org/pypi/RPi.GPIO). Exiting.')
-
-GPIO_FUNCS = {-1: 'GPIO.UNKNOWN', 0: 'GPIO.OUT', 1: 'GPIO.IN', 10: 'GPIO.BOARD', 11: 'GPIO.BCM',
-              40: 'GPIO.SERIAL', 41: "GPIO.SPI", 42: "GPIO.I2C", 43: "GPIO.HARD_PWM"}
-
 
 class COF():
     D1_VDD_C = {5: -40.1, 4: -39.8, 3.5: -39.7, 3: -39.6, 2.5: -39.4}
@@ -28,7 +18,6 @@ class COF():
     C3_SO = {12: -0.0000015955, 8: -0.00040845}
     T1_SO = {12: 0.01, 8: 0.01}
     T2_SO = {12: 0.00008, 8: 0.00128}
-
 
 class CRC():
     LOOK_UP = [0, 49, 98, 83, 196, 245, 166, 151, 185, 136, 219, 234, 125, 76, 31, 46, 67, 114, 33, 16, 135,
@@ -45,7 +34,6 @@ class CRC():
                163, 146, 5, 52, 103, 86, 120, 73, 26, 43, 188, 141, 222, 239, 130, 179, 224, 209, 70, 119, 36,
                21, 59, 10, 89, 104, 255, 206, 157, 172]
 
-
 class SHT1x:
     Commands = {'Temperature': 0b00000011,
                 'Humidity': 0b00000101,
@@ -56,11 +44,10 @@ class SHT1x:
     RESOLUTION = {'High': [14, 12], 'Low': [12, 8]}
     VDD = {'5V': 5, '4V': 4, '3.5V': 3.5, '3V': 3, '2.5V': 2.5}
 
-    def __init__(self, data_pin, sck_pin, gpio_mode=GPIO.BOARD, vdd='3.5V', resolution='High',
-                 heater=False, otp_no_reload=False, crc_check=True, logger=None):
+    def __init__(self, data_pin, sck_pin, vdd='3.5V', resolution='High',
+                 heater=False, otp_no_reload=False, crc_check=True):
         self.data_pin = data_pin
         self.sck_pin = sck_pin
-        self.gpio_mode = gpio_mode
         self.vdd = self.VDD.get(vdd.upper(), self.VDD['3.5V'])
         self._resolution = self.RESOLUTION.get(resolution.capitalize(), self.RESOLUTION['High'])
         self._heater = heater
@@ -72,27 +59,8 @@ class SHT1x:
         self.temperature_fahrenheit = None
         self.humidity = None
         self.dew_point = None
-        self._logger = logger
 
-        GPIO.setmode(self.gpio_mode)
         self.initialize_sensor()
-
-        self.logger.info('Initial configuration:\nData Pin: {0}\nClock Pin: {1}\nGPIO mode: {2}\nVdd: {3}\n'
-                         'Resolution: {4}\nHeater: {5}\nOTP no reload: {6}\nCRC check: {7}'
-                         .format(self.data_pin, self.sck_pin, GPIO_FUNCS[gpio_mode], self.vdd, resolution,
-                                 self._heater, self._otp_no_reload, self.crc_check))
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.logger.info('GPIO channel function status:\nData pin [{0}]: {1}\nClock pin [{2}]: {3}'
-                         .format(self.data_pin, GPIO_FUNCS[GPIO.gpio_function(self.data_pin)],
-                                 self.sck_pin, GPIO_FUNCS[GPIO.gpio_function(self.sck_pin)]))
-        GPIO.cleanup()
-        if exc_type is not None:
-            self.logger.error('Exception in with block: {0}\n{1}\n{2}'.format(exc_type, exc_val, exc_tb))
-            return False
 
     @property
     def heater(self):
@@ -121,17 +89,6 @@ class SHT1x:
         self._resolution = value
         self.initialize_sensor()
 
-    @property
-    def logger(self):
-        """
-        A :class:`logging.Logger` object for this application.
-        """
-        if self._logger:
-            return self._logger
-        from pi_sht1x.logging import create_logger
-        self._logger = create_logger(__name__)
-        return self._logger
-
     def initialize_sensor(self):
         """
         Resets the connection to the sensor and then initializes the SHT1x's status register based on the values
@@ -153,7 +110,6 @@ class SHT1x:
         if self._resolution[0] == self.RESOLUTION['Low'][0]:
             mask += 1
 
-        self.logger.info('Initializing sensor using bit mask: {0:08b}'.format(mask))
         self._write_status_register(mask)
 
     def read_temperature(self):
@@ -171,7 +127,6 @@ class SHT1x:
         self.temperature_fahrenheit = round(raw_temperature * COF.D2_SO_F[self._resolution[0]] +
                                             COF.D1_VDD_F[self.vdd], 2)
 
-        self.logger.info('Temperature: {0}*C [{1}*F]'.format(self.temperature_celsius, self.temperature_fahrenheit))
         return self.temperature_celsius
 
     def read_humidity(self, temperature=None):
@@ -199,7 +154,6 @@ class SHT1x:
         self.humidity = round((temperature - 25) * (
             COF.T1_SO[self._resolution[1]] + COF.T2_SO[self._resolution[1]] * raw_humidity) + linear_humidity, 2)
 
-        self.logger.info('Relative Humidity: {0}%'.format(self.humidity))
         return self.humidity
 
     def calculate_dew_point(self, temperature=None, humidity=None):
@@ -231,7 +185,6 @@ class SHT1x:
         ew = (m * temperature) / (tn + temperature)
         self.dew_point = round(tn * (log_humidity + ew) / m - (log_humidity + ew), 2)
 
-        self.logger.info('Dew Point: {0}*C'.format(self.dew_point))
         return self.dew_point
 
     def _send_command(self, measurement=True):
@@ -245,21 +198,16 @@ class SHT1x:
         """
         command_name = [key for key in self.Commands.keys() if self.Commands[key] == self._command]
         if not command_name:
-            message = "The command was not found: {0}".format(self._command)
-            self.logger.error(message)
-            raise SHT1xError(message)
+            raise SHT1xError('The command was not found: {0}'.format(self._command))
 
         self._transmission_start()
         self._send_byte(self._command)
         self._get_ack(command_name)
 
         if measurement:
-            ack = GPIO.input(self.data_pin)
-            self.logger.info('SHT1x is taking measurement.')
-            if ack == GPIO.LOW:
-                message = 'SHT1x is not in the proper measurement state: DATA line is LOW.'
-                self.logger.error(message)
-                raise SHT1xError(message)
+            ack = self.data_pin.value()
+            if ack == 0:
+                raise SHT1xError('SHT1x is not in the proper measurement state: DATA line is LOW.')
 
             self._wait_for_result()
 
@@ -273,17 +221,16 @@ class SHT1x:
         Raises an exception if the Data Ready signal hasn't been received after 350 milliseconds.
         :return: None
         """
-        GPIO.setup(self.data_pin, GPIO.IN)
-        data_ready = GPIO.HIGH
+        self.data_pin.mode(machine.Pin.IN)
+        data_ready = 1
 
         for i in range(35):
             time.sleep(.01)
-            data_ready = GPIO.input(self.data_pin)
-            if data_ready == GPIO.LOW:
-                self.logger.debug('Measurement complete.')
+            data_ready = self.data_pin.value()
+            if data_ready == 0:
                 break
 
-        if data_ready == GPIO.HIGH:
+        if data_ready == 1:
             raise SHT1xError('Sensor has not completed measurement after max time allotment.\n{0}'.format(self))
 
     def _read_measurement(self):
@@ -313,14 +260,14 @@ class SHT1x:
         Reads a single byte from the SHT1x sensor.
         :return: 8-bit value.
         """
-        GPIO.setup(self.data_pin, GPIO.IN)
-        GPIO.setup(self.sck_pin, GPIO.OUT)
+        self.data_pin.mode(machine.Pin.IN)
+        self.sck_pin.mode(machine.Pin.OUT)
 
         data = 0b00000000
         for i in range(8):
-            self._toggle_pin(self.sck_pin, GPIO.HIGH)
-            data |= GPIO.input(self.data_pin) << (7 - i)
-            self._toggle_pin(self.sck_pin, GPIO.LOW)
+            self._toggle_pin(self.sck_pin, 1)
+            data |= self.data_pin.value() << (7 - i)
+            self._toggle_pin(self.sck_pin, 0)
 
         return data
 
@@ -330,23 +277,23 @@ class SHT1x:
         :param data: Byte of data to send.
         :return: None
         """
-        GPIO.setup(self.data_pin, GPIO.OUT)
-        GPIO.setup(self.sck_pin, GPIO.OUT)
+        self.data_pin.mode(machine.Pin.OUT)
+        self.sck_pin.mode(machine.Pin.OUT)
 
         for i in range(8):
             self._toggle_pin(self.data_pin, data & (1 << 7 - i))
-            self._toggle_pin(self.sck_pin, GPIO.HIGH)
-            self._toggle_pin(self.sck_pin, GPIO.LOW)
+            self._toggle_pin(self.sck_pin, 1)
+            self._toggle_pin(self.sck_pin, 0)
 
     def _toggle_pin(self, pin, state):
         """
         Toggles the state of the specified pin. If the specified pin is the SCK pin, it will sleep
         for 100ns after setting its new state.
         :param pin: Pin to toggle state.
-        :param state: State to change the pin, GPIO.LOW or GPIO.HIGH.
+        :param state: State to change the pin, LOW or HIGH.
         :return: None.
         """
-        GPIO.output(pin, state)
+        pin.value(state)
         if pin == self.sck_pin:
             time.sleep(0.0000001)
 
@@ -355,28 +302,28 @@ class SHT1x:
         Sends the transmission start sequence to the sensor to initiate communication.
         :return: None
         """
-        GPIO.setup(self.data_pin, GPIO.OUT)
-        GPIO.setup(self.sck_pin, GPIO.OUT)
+        self.data_pin.mode(machine.Pin.OUT)
+        self.sck_pin.mode(machine.Pin.OUT)
 
-        self._toggle_pin(self.data_pin, GPIO.HIGH)
-        self._toggle_pin(self.sck_pin, GPIO.HIGH)
-        self._toggle_pin(self.data_pin, GPIO.LOW)
-        self._toggle_pin(self.sck_pin, GPIO.LOW)
-        self._toggle_pin(self.sck_pin, GPIO.HIGH)
-        self._toggle_pin(self.data_pin, GPIO.HIGH)
-        self._toggle_pin(self.sck_pin, GPIO.LOW)
+        self._toggle_pin(self.data_pin, 1)
+        self._toggle_pin(self.sck_pin, 1)
+        self._toggle_pin(self.data_pin, 0)
+        self._toggle_pin(self.sck_pin, 0)
+        self._toggle_pin(self.sck_pin, 1)
+        self._toggle_pin(self.data_pin, 1)
+        self._toggle_pin(self.sck_pin, 0)
 
     def _transmission_end(self):
         """
         Sends skip ACK by keeping the DATA line high to bypass CRC and end transmission.
         :return: None.
         """
-        GPIO.setup(self.data_pin, GPIO.OUT)
-        GPIO.setup(self.sck_pin, GPIO.OUT)
+        self.data_pin.mode(machine.Pin.OUT)
+        self.sck_pin.mode(machine.Pin.OUT)
 
-        self._toggle_pin(self.data_pin, GPIO.HIGH)
-        self._toggle_pin(self.sck_pin, GPIO.HIGH)
-        self._toggle_pin(self.sck_pin, GPIO.LOW)
+        self._toggle_pin(self.data_pin, 1)
+        self._toggle_pin(self.sck_pin, 1)
+        self._toggle_pin(self.sck_pin, 0)
 
     def _get_ack(self, command_name):
         """
@@ -384,32 +331,29 @@ class SHT1x:
         :param command_name: Command issued to the sensor.
         :return: None
         """
-        GPIO.setup(self.data_pin, GPIO.IN)
-        GPIO.setup(self.sck_pin, GPIO.OUT)
+        self.data_pin.mode(machine.Pin.IN)
+        self.sck_pin.mode(machine.Pin.OUT)
 
-        self._toggle_pin(self.sck_pin, GPIO.HIGH)
+        self._toggle_pin(self.sck_pin, 1)
 
-        ack = GPIO.input(self.data_pin)
-        self.logger.info('Command {0} [{1:08b}] acknowledged: {1}'.format(command_name, self._command, ack))
-        if ack == GPIO.HIGH:
-            message = 'SHT1x failed to properly receive command [{0} - {1:08b}]'.format(command_name, self._command)
-            self.logger.error(message)
-            raise SHT1xError(message)
+        ack = self.data_pin.value()
+        if ack == 1:
+            raise SHT1xError('SHT1x failed to properly receive command [{0} - {1:08b}]'.format(command_name, self._command))
 
-        self._toggle_pin(self.sck_pin, GPIO.LOW)
+        self._toggle_pin(self.sck_pin, 0)
 
     def _send_ack(self):
         """
         Sends ACK to the SHT1x confirming byte measurement data was received by the caller.
         :return: None.
         """
-        GPIO.setup(self.data_pin, GPIO.OUT)
-        GPIO.setup(self.sck_pin, GPIO.OUT)
+        self.data_pin.mode(machine.Pin.OUT)
+        self.sck_pin.mode(machine.Pin.OUT)
 
-        self._toggle_pin(self.data_pin, GPIO.HIGH)
-        self._toggle_pin(self.data_pin, GPIO.LOW)
-        self._toggle_pin(self.sck_pin, GPIO.HIGH)
-        self._toggle_pin(self.sck_pin, GPIO.LOW)
+        self._toggle_pin(self.data_pin, 1)
+        self._toggle_pin(self.data_pin, 0)
+        self._toggle_pin(self.sck_pin, 1)
+        self._toggle_pin(self.sck_pin, 0)
 
     def read_status_register(self):
         """
@@ -419,14 +363,12 @@ class SHT1x:
         self._command = self.Commands['ReadStatusRegister']
         self._send_command(measurement=False)
         self._status_register = self._get_byte()
-        self.logger.debug("Status Register read: {0:08b}".format(self._status_register))
 
         if self.crc_check:
             self._validate_crc(self._status_register, measurement=False)
         else:
             self._transmission_end()
 
-        self.logger.info("Read Status Register: {0:08b}".format(self._status_register))
         return self._status_register
 
     def _write_status_register(self, mask):
@@ -452,7 +394,6 @@ class SHT1x:
         """
         self._command = self.Commands['WriteStatusRegister']
         self._send_command(measurement=False)
-        self.logger.info("Writing Status Register: {0:08b}".format(mask))
 
         self._send_byte(mask)
         self._get_ack('WriteStatusRegister')
@@ -481,7 +422,6 @@ class SHT1x:
         """
         sr_reversed = self._reverse_byte(self._status_register)
         crc_register = (sr_reversed >> 4) << 4
-        self.logger.info("Status register reversed: {0:08b}".format(crc_register))
 
         return crc_register
 
@@ -495,34 +435,23 @@ class SHT1x:
         self._send_ack()
         crc_value = self._get_byte()
         self._transmission_end()
-        self.logger.info('CRC value from sensor: {0:08b}'.format(crc_value))
 
         crc_start_value = self._reverse_status_register()
-        self.logger.info('CRC start value: {0:08b}'.format(crc_start_value))
-
         crc_lookup = CRC.LOOK_UP[int(crc_start_value ^ self._command)]
-        self.logger.info('CRC command lookup value: {0:08b}'.format(crc_lookup))
 
-        self.logger.info('Sensor data (MSB and LSB): {0:016b}'.format(data))
         if measurement:
             crc_lookup = CRC.LOOK_UP[int(crc_lookup ^ (data >> 8))]
-            self.logger.info('CRC MSB lookup value: {0:08b}'.format(crc_lookup))
-
             crc_final = CRC.LOOK_UP[int(crc_lookup ^ (data & 0b0000000011111111))]
-            self.logger.info('CRC LSB lookup value: {0:08b}'.format(crc_final))
         else:
             crc_final = CRC.LOOK_UP[int(crc_lookup ^ data)]
-            self.logger.info('CRC data lookup value: {0:08b}'.format(crc_final))
 
         crc_final_reversed = self._reverse_byte(crc_final)
-        self.logger.info('CRC calculated value (reversed): {0:08b}'.format(crc_final_reversed))
 
         if crc_value != crc_final_reversed:
             self.soft_reset()
             message = 'CRC error! Sensor has been reset, please try again.\n' \
                       'CRC value from sensor: {0:08b}\nCRC calculated value: {1:08b}'.format(crc_value,
                                                                                              crc_final_reversed)
-            self.logger.error(message)
             raise SHT1xError(message)
 
         return
@@ -532,13 +461,13 @@ class SHT1x:
         Resets the serial interface to the Sht1x sensor. The status register preserves its content.
         :return: None.
         """
-        GPIO.setup(self.data_pin, GPIO.OUT)
-        GPIO.setup(self.sck_pin, GPIO.OUT)
+        self.data_pin.mode(machine.Pin.OUT)
+        self.sck_pin.mode(machine.Pin.OUT)
 
-        self._toggle_pin(self.data_pin, GPIO.HIGH)
+        self._toggle_pin(self.data_pin, 1)
         for i in range(10):
-            self._toggle_pin(self.sck_pin, GPIO.HIGH)
-            self._toggle_pin(self.sck_pin, GPIO.LOW)
+            self._toggle_pin(self.sck_pin, 1)
+            self._toggle_pin(self.sck_pin, 0)
 
     def soft_reset(self):
         """
@@ -559,7 +488,3 @@ class SHT1x:
 
         return 'Temperature: {0}*C [{1}*F]\nRelative Humidity: {2}%\nDew Point: {3}*C\n'.format(celsius, fahrenheit,
                                                                                                 humidity, dew_point)
-
-
-if __name__ == "__main__":
-    pass

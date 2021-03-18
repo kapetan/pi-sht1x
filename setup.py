@@ -46,9 +46,6 @@ setup(
     include_package_data=True,
     download_url=download_url,
     packages=['pi_sht1x', 'examples'],
-    install_requires=[
-        'RPi.GPIO>=0.5.11',
-    ],
     classifiers=classifiers,
     keywords='sht sensor sht1x sensirion T temperature humidity RH dew-point celsius measurement'
              ' gpio serial 2-wire crc crc-8 hardware driver ic'
