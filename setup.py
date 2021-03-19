@@ -1,5 +1,5 @@
 from os import path
-from setuptools import setup
+from setuptools import setup, find_packages
 
 here = path.abspath(path.dirname(__file__))
 
@@ -24,8 +24,8 @@ setup(
     long_description=long_description,
     long_description_content_type='text/x-rst',
     include_package_data=True,
-    packages=['sht1x'],
     classifiers=classifiers,
     keywords='sht sensor sht1x sensirion T temperature humidity RH dew-point celsius measurement'
-             ' gpio serial 2-wire crc crc-8 hardware driver ic'
+             ' gpio serial 2-wire crc crc-8 hardware driver ic',
+    py_modules=find_packages()
 )
