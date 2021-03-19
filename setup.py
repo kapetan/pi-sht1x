@@ -1,51 +1,30 @@
-__author__ = 'Doug Rohm'
-import re
-import ast
 from os import path
 from setuptools import setup
 
-
 here = path.abspath(path.dirname(__file__))
+
 with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
     long_description = f.read()
 
-_version_re = re.compile(r'__version__\s+=\s+(.*)')
-with open('pi_sht1x/__init__.py', 'rb') as f:
-    version = str(ast.literal_eval(_version_re.search(f.read().decode('utf-8')).group(1)))
-
-download_url = 'https://github.com/drohm/pi-sht1x/releases/tag/{0}'.format(version)
-
 classifiers = ['Development Status :: 5 - Production/Stable',
-               'Environment :: Console',
                'Intended Audience :: Developers',
-               'Intended Audience :: End Users/Desktop',
-               'Intended Audience :: Manufacturing',
-               'Intended Audience :: Science/Research',
-               'Intended Audience :: System Administrators',
+               'Topic :: Software Development :: Libraries',
+               'Topic :: System :: Hardware',
                'License :: OSI Approved :: MIT License',
-               'Operating System :: POSIX :: Linux',
+               'Programming Language :: Python :: 3',
                'Programming Language :: Python :: 3.4',
-               'Programming Language :: Python :: 3 :: Only',
-               'Topic :: Home Automation',
-               'Topic :: Scientific/Engineering :: Atmospheric Science',
-               'Topic :: System :: Hardware :: Hardware Drivers',
-               'Topic :: System :: Monitoring',
-               'Topic :: System :: Operating System Kernels :: Linux',
-               'Topic :: Software Development',
-               'Topic :: Utilities']
+               'Programming Language :: Python :: 3.5']
 
 setup(
-    name='pi-sht1x',
+    name='MicroPython-sht1x',
     version=version,
-    url='https://github.com/drohm/pi-sht1x',
+    url='https://github.com/kapetan/MicroPython-sht1x',
     license='MIT',
-    author=__author__,
-    author_email='pypi@drohm.sent.com',
-    description='Python 3 library for Sensirion SHT1x series of temperature & humidity sensors for the Raspberry Pi.',
+    description='MicroPython library for Sensirion SHT1x series of temperature & humidity sensors.',
     long_description=long_description,
+    long_description_content_type='text/x-rst',
     include_package_data=True,
-    download_url=download_url,
-    packages=['pi_sht1x', 'examples'],
+    packages=['sht1x'],
     classifiers=classifiers,
     keywords='sht sensor sht1x sensirion T temperature humidity RH dew-point celsius measurement'
              ' gpio serial 2-wire crc crc-8 hardware driver ic'
