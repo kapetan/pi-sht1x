@@ -1,7 +1,7 @@
 ********
 MicroPython-sht1x
 ********
-The MicroPython-sht1x package is a MicroPython library used to communicate and control the Sensirion SHT1x series of temperature and humidity sensors. Forked from [pi-sht1x](https://github.com/drohm/pi-sht1x).
+The MicroPython-sht1x package is a MicroPython library used to communicate and control the Sensirion SHT1x series of temperature and humidity sensors. Forked from `pi-sht1x <https://github.com/drohm/pi-sht1x>`_ and modified to work with MicroPython 1.14.
 
 SHT1x (including SHT10, SHT11 and SHT15) is Sensirion's family of surface mountable relative humidity and temperature sensors. The sensors integrate sensor elements plus signal processing on a tiny foot print and provide a fully calibrated digital output. A unique capacitive sensor element is used for measuring relative humidity while temperature is measured by a band-gap sensor.
 
